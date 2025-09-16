@@ -1,0 +1,32 @@
+name: Flask Preview via ngrok
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t flask-preview:latest .
+
+      - name: Run container (expose via ngrok for 120s)
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+        run: |
+          if [ -z "$NGROK_AUTHTOKEN" ]; then
+            echo "::error::Missing NGROK_AUTHTOKEN secret. Add it in repo settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          # Lance le conteneur: il imprime l'URL publique dans les logs
+          docker run --rm \
+            -e NGROK_AUTHTOKEN="$NGROK_AUTHTOKEN" \
+            flask-preview:latest
