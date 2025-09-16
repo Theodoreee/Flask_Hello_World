@@ -1,0 +1,36 @@
+name: Docker + ngrok Preview
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: docker build -t flask-app .
+
+    - name: Run Flask app with ngrok
+      run: |
+        sudo apt update
+        sudo apt install -y curl
+        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+        sudo apt update && sudo apt install -y ngrok
+
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
+
+        docker run -d -p 5000:5000 --name flask-container flask-app
+        sleep 5
+
+        ngrok http 5000 --log=stdout &
+        sleep 10
+
+        NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '"public_url":"[^"]*https[^"]*' | cut -d'"' -f4)
+        echo "🌐 URL publique : $NGROK_URL"
+
+        sleep 120
